@@ -3,11 +3,12 @@ package com.example
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.annotation.*
 import io.micronaut.http.client.HttpClient
+import jakarta.inject.Inject
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.state.QueryableStoreTypes
-import java.net.URL
-import javax.inject.Inject
+import org.apache.kafka.streams.StoreQueryParameters
+import java.time.Instant
 
 @Controller("/api")
 class FraudController(
@@ -37,8 +38,19 @@ class FraudController(
 
         // 2. If I own it, query my local RocksDB
         if (activeHost.host() == currentHost) {
-            val store = streams.store(storeName, QueryableStoreTypes.windowStore<String, Long>())
-            val iterator = store.backwardFetch(userId, 0L, System.currentTimeMillis())
+            // 1. Use StoreQueryParameters (The Kafka Streams 3.x way)
+            val store = streams.store(
+                StoreQueryParameters.fromNameAndType(
+                    storeName,
+                    QueryableStoreTypes.windowStore<String, Long>()
+                )
+            )
+
+// 2. Use java.time.Instant instead of raw Longs for the timestamps
+            val timeFrom = Instant.ofEpochMilli(0L)
+            val timeTo = Instant.now()
+
+            val iterator = store.backwardFetch(userId, timeFrom, timeTo)
             val count = if (iterator.hasNext()) iterator.next().value else 0L
             
             return HttpResponse.ok(mapOf("userId" to userId, "count" to count, "node" to currentHost))
