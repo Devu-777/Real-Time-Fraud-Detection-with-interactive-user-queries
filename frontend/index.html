@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fraud Engine Dashboard</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; width: 300px; }
+        .danger { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Live Fraud Engine</h2>
+    
+    <div class="card">
+        <h3>Simulate Swipe</h3>
+        <input type="text" id="userId" placeholder="User ID (e.g., user_123)">
+        <button onclick="swipe()">Swipe Card</button>
+    </div>
+
+    <div class="card">
+        <h3>Check Status</h3>
+        <button onclick="checkStatus()">Get Status</button>
+        <p id="statusResult">Status will appear here...</p>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000/api";
+
+        async function swipe() {
+            const userId = document.getElementById("userId").value;
+            // Simulated transaction post (would normally hit backend which pushes to Kafka)
+            await fetch(`${API_URL}/transactions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: userId, amount: 50.0 })
+            });
+            console.log("Swipe accepted for " + userId);
+        }
+
+        async function checkStatus() {
+            const userId = document.getElementById("userId").value;
+            const res = await fetch(`${API_URL}/status/${userId}`);
+            const data = await res.json();
+            
+            const text = `Count: ${data.count} <br> Responded from Node: ${data.node}`;
+            const el = document.getElementById("statusResult");
+            
+            if (data.count >= 3) {
+                el.innerHTML = `<span class="danger">BLOCKED</span><br>${text}`;
+            } else {
+                el.innerHTML = `<span style="color:green">OK</span><br>${text}`;
+            }
+        }
+    </script>
+</body>
+</html>
